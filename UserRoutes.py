@@ -2,7 +2,8 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from utils import make_flavor_choose, make_size_choose, make_bool_kb, status_for_user, default_user_kb
+from utils import ADMIN_IDS
+from utils import make_flavor_choose, make_size_choose, make_bool_kb, status_for_user, default_user_kb, call_admin
 from models import SessionLocal, Product, Transaction
 from sqlalchemy import select, desc
 
@@ -19,6 +20,7 @@ class UserTransactions(StatesGroup):
     failed = State()
     pending = State()
     select_trx_id = State()
+    confirm_cancel = State()
 
 @MainRouter.message(Command('cancel'))
 async def cancel(message, state):
@@ -125,12 +127,12 @@ async def confirm(message, state: FSMContext):
                                   status='pending')
         result.count -= 1
         session.add(transaction)
-        # await call_admin(ADMIN_IDS, result, user_id)
+        await call_admin(ADMIN_IDS, result, user_id)
         await session.commit()
 
 
         await message.answer("Успішно прийнято, @nicce_nik напише до вас у найближчій час.\nЯкщо у вас не встановленно user_name то напишіть до нього."
-                             ,reply_markup=make_flavor_choose(['/shop']))
+                             ,reply_markup=default_user_kb())
 
         await state.clear()
 
@@ -232,6 +234,59 @@ async def select_trx_id(message, state: FSMContext):
         await message.answer('Введіть номер замовлення зі списку',
                              reply_markup=make_flavor_choose(user_data['avaible_ids']))
         return
+
+    trx = None
+
+    for trx_ in user_data['result_list']:
+        if trx_.id == trx_id:
+            trx = trx_
+            break
+
+    if trx is None:
+        await message.answer("Сталася помилку, спробуйте знову")
+        await cancel(message,state)
+        return
+
+    msg = 'Ви впевненні що хочете скасувати цю транзакцію?'
+    msg += f"\n\nНомер замовлення: {trx.id}, Дата: {trx.created_at.strftime('%Y-%m-%d %H:%M:%S')}, Смак: {trx.flavor}, Об'єм: {trx.size}мл, Ціна: {trx.price}грн, Cтатус: {str(status_for_user.get(trx.status))}"
+    await state.update_data(trx_id = trx_id)
+    await message.answer(msg, reply_markup = make_bool_kb())
+    await state.set_state(UserTransactions.confirm_cancel)
+
+
+@MainRouter.message(UserTransactions.confirm_cancel)
+async def confirm_cancel(message, state: FSMContext):
+    user_data = await state.get_data()
+
+    if message.text[:3] != 'Так':
+        await cancel(message,state)
+        return
+
+    trx_id = user_data['trx_id']
+
+    async with SessionLocal() as session:
+        query = select(Transaction).where(Transaction.id == trx_id)
+        result = await session.scalar(query)
+        if result is None:
+            await message.asnwer('Сталася помилка, спробуйте знову',reply_markup = default_user_kb())
+            await state.clear()
+            return
+        result.status = 'canceled'
+        await session.commit()
+        await message.answer("Успішно скасовано", reply_markup = default_user_kb())
+
+
+
+@MainRouter.message()
+async def user_any_message(message, state: FSMContext):
+    await message.answer('Виберіть команду зі списку списку', reply_markup = default_user_kb())
+
+
+
+
+
+
+
 
 
 

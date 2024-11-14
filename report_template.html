@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Transaction List</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Transaction List</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Flavor</th>
+                <th>Size</th>
+                <th>Price</th>
+                <th>Created At</th>
+                <th>Telegram User ID</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Username</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for transaction in transactions %}
+            <tr>
+                <td>{{ transaction.id }}</td>
+                <td>{{ transaction.flavor }}</td>
+                <td>{{ transaction.size }}</td>
+                <td>{{ transaction.price }}</td>
+                <td>{{ transaction.created_at }}</td>
+                <td>{{ transaction.telegram_user_id }}</td>
+                <td>{{ transaction.telegram_user_first_name }}</td>
+                <td>{{ transaction.telegram_user_last_name or 'N/A' }}</td>
+                <td>{{ transaction.telegram_user_username or 'N/A' }}</td>
+                <td>{{ transaction.status }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
